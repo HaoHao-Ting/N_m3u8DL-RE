@@ -505,8 +505,8 @@ namespace N_m3u8DL_RE.DownloadManager
                     {
                         Logger.WarnMarkUp($"{Path.GetFileName(ffOut)} => {Path.GetFileName(ffOut = Path.ChangeExtension(ffOut, $"copy" + Path.GetExtension(ffOut)))}");
                     }
-                    //大于1800分片，需要分步骤合并
-                    if (files.Length >= 1800)
+                    //大于1000分片，需要分步骤合并
+                    if (files.Length >= 1000)
                     {
                         Logger.WarnMarkUp(ResString.partMerge);
                         files = MergeUtil.PartialCombineMultipleFiles(files);

@@ -597,9 +597,9 @@ namespace N_m3u8DL_RE.Common.Resource
             ),
             ["partMerge"] = new TextContainer
             (
-                zhCN: "分片数量大于1800个，开始分块合并...",
-                zhTW: "分片數量大於1800個，開始分塊合併...",
-                enUS: "Segments more than 1800, start partial merge..."
+                zhCN: "分片数量大于1000个，开始分块合并...",
+                zhTW: "分片數量大於1000個，開始分塊合併...",
+                enUS: "Segments more than 1000, start partial merge..."
             ),
             ["notSupported"] = new TextContainer
             (
