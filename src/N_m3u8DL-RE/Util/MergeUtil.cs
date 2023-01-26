@@ -49,7 +49,7 @@ namespace N_m3u8DL_RE.Util
             }
         }
 
-        private static void InvokeFFmpeg(string binary, string command, string workingDirectory)
+        private static int InvokeFFmpeg(string binary, string command, string workingDirectory)
         {
             Logger.DebugMarkUp($"{binary}: {command}");
 
@@ -73,6 +73,7 @@ namespace N_m3u8DL_RE.Util
             p.Start();
             p.BeginErrorReadLine();
             p.WaitForExit();
+            return p.ExitCode;
         }
 
         public static string[] PartialCombineMultipleFiles(string[] files)
@@ -117,7 +118,7 @@ namespace N_m3u8DL_RE.Util
 
             string dateString = string.IsNullOrEmpty(recTime) ? DateTime.Now.ToString("o") : recTime;
 
-            StringBuilder command = new StringBuilder("-loglevel warning -i concat:\"");
+            StringBuilder command = new StringBuilder("-loglevel warning -nostdin -i concat:\"");
             string ddpAudio = string.Empty;
             string addPoster = "-map 1 -c:v:1 copy -disposition:v:1 attached_pic";
             ddpAudio = (File.Exists($"{Path.GetFileNameWithoutExtension(outputPath + ".mp4")}.txt") ? File.ReadAllText($"{Path.GetFileNameWithoutExtension(outputPath + ".mp4")}.txt") : "");
@@ -151,7 +152,7 @@ namespace N_m3u8DL_RE.Util
                     command.Append("\" -map 0  -c copy -y " + (useAACFilter ? "-bsf:a aac_adtstoasc" : "") + " \"" + outputPath + ".flv\"");
                     break;
                 case ("M4A"):
-                    command.Append("\" -map 0  -c copy -y " + (useAACFilter ? "-bsf:a aac_adtstoasc" : "") + " \"" + outputPath + ".m4a\"");
+                    command.Append("\" -map 0  -c copy -f mp4 -y " + (useAACFilter ? "-bsf:a aac_adtstoasc" : "") + " \"" + outputPath + ".m4a\"");
                     break;
                 case ("TS"):
                     command.Append("\" -map 0  -c copy -y -f mpegts -bsf:v h264_mp4toannexb \"" + outputPath + ".ts\"");
@@ -167,19 +168,16 @@ namespace N_m3u8DL_RE.Util
                     break;
             }
 
-            InvokeFFmpeg(binary, command.ToString(), Path.GetDirectoryName(files[0])!);
+            var code = InvokeFFmpeg(binary, command.ToString(), Path.GetDirectoryName(files[0])!);
 
-            if (File.Exists($"{outputPath}.{muxFormat}") && new FileInfo($"{outputPath}.{muxFormat}").Length > 0)
-                return true;
-
-            return false;
+            return code == 0;
         }
 
-        public static bool MuxInputsByFFmpeg(string binary, OutputFile[] files, string outputPath, bool mp4)
+        public static bool MuxInputsByFFmpeg(string binary, OutputFile[] files, string outputPath, bool mp4, bool dateinfo)
         {
             var ext = mp4 ? "mp4" : "mkv";
             string dateString = DateTime.Now.ToString("o");
-            StringBuilder command = new StringBuilder("-loglevel warning -y ");
+            StringBuilder command = new StringBuilder("-loglevel warning -nostdin -y ");
 
             //INPUT
             foreach (var item in files)
@@ -194,9 +192,9 @@ namespace N_m3u8DL_RE.Util
             }
 
             if (mp4)
-                command.Append($" -c:a copy -c:v copy -c:s mov_text "); //mp4不支持vtt/srt字幕，必须转换格式
+                command.Append($" -strict unofficial -c:a copy -c:v copy -c:s mov_text "); //mp4不支持vtt/srt字幕，必须转换格式
             else
-                command.Append($" -c copy ");
+                command.Append($" -strict unofficial -c copy ");
 
             //CLEAN
             command.Append(" -map_metadata -1 ");
@@ -206,7 +204,7 @@ namespace N_m3u8DL_RE.Util
             for (int i = 0; i < files.Length; i++)
             {
                 //转换语言代码
-                ConvertLangCodeAndDisplayName(files[i]);
+                LanguageCodeUtil.ConvertLangCodeAndDisplayName(files[i]);
                 command.Append($" -metadata:s:{streamIndex} language=\"{files[i].LangCode ?? "und"}\" ");
                 if (!string.IsNullOrEmpty(files[i].Description))
                 {
@@ -223,15 +221,13 @@ namespace N_m3u8DL_RE.Util
                     streamIndex++;
             }
 
-            command.Append($" -metadata date=\"{dateString}\" -ignore_unknown -copy_unknown ");
+            if(dateinfo) command.Append($" -metadata date=\"{dateString}\" ");
+            command.Append($" -ignore_unknown -copy_unknown ");
             command.Append($" \"{outputPath}.{ext}\"");
 
-            InvokeFFmpeg(binary, command.ToString(), Environment.CurrentDirectory);
+            var code = InvokeFFmpeg(binary, command.ToString(), Environment.CurrentDirectory);
 
-            if (File.Exists($"{outputPath}.{ext}") && new FileInfo($"{outputPath}.{ext}").Length > 1024)
-                return true;
-
-            return false;
+            return code == 0;
         }
 
         public static bool MuxInputsByMkvmerge(string binary, OutputFile[] files, string outputPath)
@@ -244,87 +240,16 @@ namespace N_m3u8DL_RE.Util
             for (int i = 0; i < files.Length; i++)
             {
                 //转换语言代码
-                ConvertLangCodeAndDisplayName(files[i]);
+                LanguageCodeUtil.ConvertLangCodeAndDisplayName(files[i]);
                 command.Append($" --language 0:\"{files[i].LangCode ?? "und"}\" ");
                 if (!string.IsNullOrEmpty(files[i].Description))
                     command.Append($" --track-name 0:\"{files[i].Description}\" ");
                 command.Append($" \"{files[i].FilePath}\" ");
             }
 
-            InvokeFFmpeg(binary, command.ToString(), Environment.CurrentDirectory);
+            var code = InvokeFFmpeg(binary, command.ToString(), Environment.CurrentDirectory);
 
-            if (File.Exists($"{outputPath}.mkv") && new FileInfo($"{outputPath}.mkv").Length > 1024)
-                return true;
-
-            return false;
-        }
-
-        /// <summary>
-        /// 转换 ISO 639-1 => ISO 639-2
-        /// 且当Description为空时将DisplayName写入
-        /// </summary>
-        /// <param name="outputFile"></param>
-        private static void ConvertLangCodeAndDisplayName(OutputFile outputFile)
-        {
-            if (string.IsNullOrEmpty(outputFile.LangCode)) return;
-            var originalLangCode = outputFile.LangCode;
-
-            // zh-cn => zh
-            outputFile.LangCode = outputFile.LangCode.Split('-')[0];
-            // ENG => eng
-            if (outputFile.LangCode.ToUpper() == outputFile.LangCode) outputFile.LangCode = outputFile.LangCode.ToLower();
-
-            CultureInfo[] cultures = CultureInfo.GetCultures(CultureTypes.AllCultures);
-            foreach (var c in cultures)
-            {
-                if (outputFile.LangCode == c.TwoLetterISOLanguageName)
-                {
-                    outputFile.LangCode = c.ThreeLetterISOLanguageName;
-                    if (string.IsNullOrEmpty(outputFile.Description))
-                    {
-                        outputFile.Description = c.DisplayName;
-                    }
-                    break;
-                }
-                else if (outputFile.LangCode == c.ThreeLetterISOLanguageName)
-                {
-                    if (string.IsNullOrEmpty(outputFile.Description))
-                    {
-                        outputFile.Description = c.DisplayName;
-                    }
-                    break;
-                }
-            }
-
-            //有的播放器不识别zho，统一转为chi
-            if (outputFile.LangCode == "zho") outputFile.LangCode = "chi";
-            else if (outputFile.LangCode == "cmn") outputFile.LangCode = "chi";
-            else if (outputFile.LangCode == "yue") outputFile.LangCode = "chi";
-            else if (outputFile.LangCode == "cn") outputFile.LangCode = "chi";
-            else if (outputFile.LangCode == "cz") outputFile.LangCode = "chi";
-            else if (outputFile.LangCode == "Cantonese" || outputFile.LangCode == "Mandarin")
-            {
-                outputFile.Description = outputFile.LangCode;
-                outputFile.LangCode = "chi";
-            }
-            else if (outputFile.LangCode == "Vietnamese")
-            {
-                outputFile.Description = outputFile.LangCode;
-                outputFile.LangCode = "vie";
-            }
-            else if (outputFile.LangCode == "English")
-            {
-                outputFile.Description = outputFile.LangCode;
-                outputFile.LangCode = "eng";
-            }
-            else if (outputFile.LangCode == "Thai")
-            {
-                outputFile.Description = outputFile.LangCode;
-                outputFile.LangCode = "tha";
-            }
-
-            //无描述，则把LangCode当作描述
-            if (string.IsNullOrEmpty(outputFile.Description)) outputFile.Description = originalLangCode;
+            return code == 0;
         }
     }
 }

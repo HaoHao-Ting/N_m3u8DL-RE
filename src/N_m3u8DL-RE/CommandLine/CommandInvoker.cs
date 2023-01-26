@@ -8,6 +8,7 @@ using N_m3u8DL_RE.Util;
 using NiL.JS.Expressions;
 using System.CommandLine;
 using System.CommandLine.Binding;
+using System.CommandLine.Builder;
 using System.CommandLine.Parsing;
 using System.Globalization;
 using System.Net;
@@ -17,6 +18,8 @@ namespace N_m3u8DL_RE.CommandLine
 {
     internal partial class CommandInvoker
     {
+        public const string VERSION_INFO = "N_m3u8DL-RE (Beta version) 20230111";
+
         [GeneratedRegex("((best|worst)\\d*|all)")]
         private static partial Regex ForStrRegex();
 
@@ -31,13 +34,14 @@ namespace N_m3u8DL_RE.CommandLine
         private readonly static Option<string> KeyTextFile = new(new string[] { "--key-text-file" }, description: ResString.cmd_keyText);
         private readonly static Option<Dictionary<string, string>> Headers = new(new string[] { "-H", "--header" }, description: ResString.cmd_header, parseArgument: ParseHeaders) { Arity = ArgumentArity.OneOrMore, AllowMultipleArgumentsPerToken = false };
         private readonly static Option<LogLevel> LogLevel = new(name: "--log-level", description: ResString.cmd_logLevel, getDefaultValue: () => Common.Log.LogLevel.INFO);
-        private readonly static Option<SubtitleFormat> SubtitleFormat = new(name: "--sub-format", description: ResString.cmd_subFormat, getDefaultValue: () => Enum.SubtitleFormat.VTT);
+        private readonly static Option<SubtitleFormat> SubtitleFormat = new(name: "--sub-format", description: ResString.cmd_subFormat, getDefaultValue: () => Enum.SubtitleFormat.SRT);
         private readonly static Option<bool> AutoSelect = new(new string[] { "--auto-select" }, description: ResString.cmd_autoSelect, getDefaultValue: () => false);
         private readonly static Option<bool> SubOnly = new(new string[] { "--sub-only" }, description: ResString.cmd_subOnly, getDefaultValue: () => false);
-        private readonly static Option<int> ThreadCount = new(new string[] { "--thread-count" }, description: ResString.cmd_threadCount, getDefaultValue: () => 8) { ArgumentHelpName = "number" };
+        private readonly static Option<int> ThreadCount = new(new string[] { "--thread-count" }, description: ResString.cmd_threadCount, getDefaultValue: () => Environment.ProcessorCount) { ArgumentHelpName = "number" };
         private readonly static Option<int> DownloadRetryCount = new(new string[] { "--download-retry-count" }, description: ResString.cmd_downloadRetryCount, getDefaultValue: () => 3) { ArgumentHelpName = "number" };
         private readonly static Option<bool> SkipMerge = new(new string[] { "--skip-merge" }, description: ResString.cmd_skipMerge, getDefaultValue: () => false);
         private readonly static Option<bool> SkipDownload = new(new string[] { "--skip-download" }, description: ResString.cmd_skipDownload, getDefaultValue: () => false);
+        private readonly static Option<bool> NoDateInfo = new(new string[] { "--no-date-info" }, description: ResString.cmd_noDateInfo, getDefaultValue: () => false);
         private readonly static Option<bool> BinaryMerge = new(new string[] { "--binary-merge" }, description: ResString.cmd_binaryMerge, getDefaultValue: () => false);
         private readonly static Option<bool> DelAfterDone = new(new string[] { "--del-after-done" }, description: ResString.cmd_delAfterDone, getDefaultValue: () => true);
         private readonly static Option<bool> AutoSubtitleFix = new(new string[] { "--auto-subtitle-fix" }, description: ResString.cmd_subtitleFix, getDefaultValue: () => true);
@@ -64,11 +68,15 @@ namespace N_m3u8DL_RE.CommandLine
         private readonly static Option<byte[]?> CustomHLSKey = new(name: "--custom-hls-key", description: ResString.cmd_customHLSKey, parseArgument: ParseHLSCustomKey) { ArgumentHelpName = "FILE|HEX|BASE64" };
         private readonly static Option<byte[]?> CustomHLSIv = new(name: "--custom-hls-iv", description: ResString.cmd_customHLSIv, parseArgument: ParseHLSCustomKey) { ArgumentHelpName = "FILE|HEX|BASE64" };
 
+        //任务开始时间
+        private readonly static Option<DateTime?> TaskStartAt = new(new string[] { "--task-start-at" }, description: ResString.cmd_taskStartAt, parseArgument: ParseStartTime) { ArgumentHelpName = "yyyyMMddHHmmss" };
+
 
         //直播相关
         private readonly static Option<bool> LivePerformAsVod = new(new string[] { "--live-perform-as-vod" }, description: ResString.cmd_livePerformAsVod, getDefaultValue: () => false);
         private readonly static Option<bool> LiveRealTimeMerge = new(new string[] { "--live-real-time-merge" }, description: ResString.cmd_liveRealTimeMerge, getDefaultValue: () => false);
         private readonly static Option<bool> LiveKeepSegments = new(new string[] { "--live-keep-segments" }, description: ResString.cmd_liveKeepSegments, getDefaultValue: () => true);
+        private readonly static Option<bool> LivePipeMux = new(new string[] { "--live-pipe-mux" }, description: ResString.cmd_livePipeMux, getDefaultValue: () => false);
         private readonly static Option<TimeSpan?> LiveRecordLimit = new(new string[] { "--live-record-limit" }, description: ResString.cmd_liveRecordLimit, parseArgument: ParseLiveLimit) { ArgumentHelpName = "HH:mm:ss" };
         private readonly static Option<int?> LiveWaitTime = new(new string[] { "--live-wait-time" }, description: ResString.cmd_liveWaitTime) { ArgumentHelpName = "SEC" };
 
@@ -79,6 +87,10 @@ namespace N_m3u8DL_RE.CommandLine
         private readonly static Option<StreamFilter?> VideoFilter = new(new string[] { "-sv", "--select-video" }, description: ResString.cmd_selectVideo, parseArgument: ParseStreamFilter) { ArgumentHelpName = "OPTIONS" };
         private readonly static Option<StreamFilter?> AudioFilter = new(new string[] { "-sa", "--select-audio" }, description: ResString.cmd_selectAudio, parseArgument: ParseStreamFilter) { ArgumentHelpName = "OPTIONS" };
         private readonly static Option<StreamFilter?> SubtitleFilter = new(new string[] { "-ss", "--select-subtitle" }, description: ResString.cmd_selectSubtitle, parseArgument: ParseStreamFilter) { ArgumentHelpName = "OPTIONS" };
+        
+        private readonly static Option<StreamFilter?> DropVideoFilter = new(new string[] { "-dv", "--drop-video" }, description: ResString.cmd_dropVideo, parseArgument: ParseStreamFilter) { ArgumentHelpName = "OPTIONS" };
+        private readonly static Option<StreamFilter?> DropAudioFilter = new(new string[] { "-da", "--drop-audio" }, description: ResString.cmd_dropAudio, parseArgument: ParseStreamFilter) { ArgumentHelpName = "OPTIONS" };
+        private readonly static Option<StreamFilter?> DropSubtitleFilter = new(new string[] { "-ds", "--drop-subtitle" }, description: ResString.cmd_dropSubtitle, parseArgument: ParseStreamFilter) { ArgumentHelpName = "OPTIONS" };
 
         /// <summary>
         /// 解析用户代理
@@ -151,6 +163,26 @@ namespace N_m3u8DL_RE.CommandLine
             catch (Exception)
             {
                 result.ErrorMessage = "error in parse LiveRecordLimit: " + input;
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 解析任务开始时间
+        /// </summary>
+        /// <param name="result"></param>
+        /// <returns></returns>
+        private static DateTime? ParseStartTime(ArgumentResult result)
+        {
+            var input = result.Tokens.First().Value;
+            try
+            {
+                CultureInfo provider = CultureInfo.InvariantCulture;
+                return DateTime.ParseExact(input, "yyyyMMddHHmmss", provider);
+            }
+            catch (Exception)
+            {
+                result.ErrorMessage = "error in parse TaskStartTime: " + input;
                 return null;
             }
         }
@@ -231,6 +263,14 @@ namespace N_m3u8DL_RE.CommandLine
             var url = p.GetValue("url");
             if (!string.IsNullOrEmpty(url))
                 streamFilter.UrlReg = new Regex(url);
+
+            var segsMin = p.GetValue("segsMin");
+            if (!string.IsNullOrEmpty(segsMin))
+                streamFilter.SegmentsMinCount = long.Parse(segsMin);
+
+            var segsMax = p.GetValue("segsMax");
+            if (!string.IsNullOrEmpty(segsMax))
+                streamFilter.SegmentsMaxCount = long.Parse(segsMax);
 
             return streamFilter;
         }
@@ -369,13 +409,19 @@ namespace N_m3u8DL_RE.CommandLine
                     VideoFilter = bindingContext.ParseResult.GetValueForOption(VideoFilter),
                     AudioFilter = bindingContext.ParseResult.GetValueForOption(AudioFilter),
                     SubtitleFilter = bindingContext.ParseResult.GetValueForOption(SubtitleFilter),
+                    DropVideoFilter = bindingContext.ParseResult.GetValueForOption(DropVideoFilter),
+                    DropAudioFilter = bindingContext.ParseResult.GetValueForOption(DropAudioFilter),
+                    DropSubtitleFilter = bindingContext.ParseResult.GetValueForOption(DropSubtitleFilter),
                     LiveRealTimeMerge = bindingContext.ParseResult.GetValueForOption(LiveRealTimeMerge),
                     LiveKeepSegments = bindingContext.ParseResult.GetValueForOption(LiveKeepSegments),
                     LiveRecordLimit = bindingContext.ParseResult.GetValueForOption(LiveRecordLimit),
+                    TaskStartAt = bindingContext.ParseResult.GetValueForOption(TaskStartAt),
                     LivePerformAsVod = bindingContext.ParseResult.GetValueForOption(LivePerformAsVod),
+                    LivePipeMux = bindingContext.ParseResult.GetValueForOption(LivePipeMux),
                     UseSystemProxy = bindingContext.ParseResult.GetValueForOption(UseSystemProxy),
                     CustomProxy = bindingContext.ParseResult.GetValueForOption(CustomProxy),
                     LiveWaitTime = bindingContext.ParseResult.GetValueForOption(LiveWaitTime),
+                    NoDateInfo = bindingContext.ParseResult.GetValueForOption(NoDateInfo),
                 };
 
                 if (bindingContext.ParseResult.HasOption(CustomHLSMethod)) option.CustomHLSMethod = bindingContext.ParseResult.GetValueForOption(CustomHLSMethod);
@@ -433,21 +479,37 @@ namespace N_m3u8DL_RE.CommandLine
                 Environment.Exit(0);
             }
 
-            var rootCommand = new RootCommand("N_m3u8DL-RE (Beta version) 20221017")
+            var rootCommand = new RootCommand(VERSION_INFO)
             {
                 Input, TmpDir, SaveDir, SaveName, BaseUrl, ThreadCount, DownloadRetryCount, AutoSelect, SkipMerge, SkipDownload, CheckSegmentsCount,
-                BinaryMerge, DelAfterDone, WriteMetaJson, AppendUrlParams, ConcurrentDownload, Headers, /**SavePattern,**/ SubOnly, SubtitleFormat, AutoSubtitleFix,
+                BinaryMerge, DelAfterDone, NoDateInfo, WriteMetaJson, AppendUrlParams, ConcurrentDownload, Headers, /**SavePattern,**/ SubOnly, SubtitleFormat, AutoSubtitleFix,
                 FFmpegBinaryPath,
                 LogLevel, UILanguage, UrlProcessorArgs, Keys, KeyTextFile, DecryptionBinaryPath, UseShakaPackager, MP4RealTimeDecryption,
                 MuxAfterDone,
-                CustomHLSMethod, CustomHLSKey, CustomHLSIv, UseSystemProxy, CustomProxy,
-                LivePerformAsVod, LiveRealTimeMerge, LiveKeepSegments, LiveRecordLimit, LiveWaitTime,
-                MuxImports, VideoFilter, AudioFilter, SubtitleFilter, MoreHelp
+                CustomHLSMethod, CustomHLSKey, CustomHLSIv, UseSystemProxy, CustomProxy, TaskStartAt,
+                LivePerformAsVod, LiveRealTimeMerge, LiveKeepSegments, LivePipeMux, LiveRecordLimit, LiveWaitTime,
+                MuxImports, VideoFilter, AudioFilter, SubtitleFilter, DropVideoFilter, DropAudioFilter, DropSubtitleFilter, MoreHelp
             };
+
             rootCommand.TreatUnmatchedTokensAsErrors = true;
             rootCommand.SetHandler(async (myOption) => await action(myOption), new MyOptionBinder());
 
-            return await rootCommand.InvokeAsync(args);
+            var parser = new CommandLineBuilder(rootCommand)
+                .UseDefaults()
+                .EnablePosixBundling(false)
+                .UseExceptionHandler((ex, context) =>
+                {
+                    try { Console.CursorVisible = true; } catch { }
+                    string msg = Logger.LogLevel == Common.Log.LogLevel.DEBUG ? ex.ToString() : ex.Message;
+#if DEBUG
+                    msg = ex.ToString();
+#endif
+                    Logger.Error(msg);
+                    Thread.Sleep(3000);
+                }, 1)
+                .Build();
+
+            return await parser.InvokeAsync(args);
         }
     }
 }

@@ -12,7 +12,7 @@ namespace N_m3u8DL_RE.Util
 {
     internal partial class MediainfoUtil
     {
-        [GeneratedRegex(" Stream #.*")]
+        [GeneratedRegex("  Stream #.*")]
         private static partial Regex TextRegex();
         [GeneratedRegex("#0:\\d(\\[0x\\w+?\\])")]
         private static partial Regex IdRegex();
@@ -28,6 +28,8 @@ namespace N_m3u8DL_RE.Util
         private static partial Regex BitrateRegex();
         [GeneratedRegex("(\\d+(\\.\\d+)?) fps")]
         private static partial Regex FpsRegex();
+        [GeneratedRegex("DOVI configuration record.*profile: (\\d).*compatibility id: (\\d)")]
+        private static partial Regex DoViRegex();
 
         public static async Task<List<Mediainfo>> ReadInfoAsync(string binary, string file)
         {
@@ -51,7 +53,7 @@ namespace N_m3u8DL_RE.Util
             {
                 var info = new Mediainfo()
                 {
-                    Text = TypeRegex().Match(stream.Value).Groups[2].Value,
+                    Text = TypeRegex().Match(stream.Value).Groups[2].Value.TrimEnd(),
                     Id = IdRegex().Match(stream.Value).Groups[1].Value,
                     Type = TypeRegex().Match(stream.Value).Groups[1].Value,
                 };
@@ -67,6 +69,7 @@ namespace N_m3u8DL_RE.Util
                     || info.BaseInfo.Contains("dvh1")
                     || info.BaseInfo.Contains("DOVI")
                     || info.Type.Contains("dvvideo")
+                    || (DoViRegex().IsMatch(output) && info.Type == "Video")
                     )
                     info.DolbyVison = true;
 

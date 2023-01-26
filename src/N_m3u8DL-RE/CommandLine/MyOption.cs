@@ -37,6 +37,10 @@ namespace N_m3u8DL_RE.CommandLine
         /// </summary>
         public LogLevel LogLevel { get; set; }
         /// <summary>
+        /// See: <see cref="CommandInvoker.NoDateInfo"/>.
+        /// </summary>
+        public bool NoDateInfo { get; set; }
+        /// <summary>
         /// See: <see cref="CommandInvoker.AutoSelect"/>.
         /// </summary>
         public bool AutoSelect { get; set; }
@@ -56,6 +60,10 @@ namespace N_m3u8DL_RE.CommandLine
         /// See: <see cref="CommandInvoker.LiveRecordLimit"/>.
         /// </summary>
         public TimeSpan? LiveRecordLimit { get; set; }
+        /// <summary>
+        /// See: <see cref="CommandInvoker.TaskStartAt"/>.
+        /// </summary>
+        public DateTime? TaskStartAt { get; set; }
         /// <summary>
         /// See: <see cref="CommandInvoker.SkipMerge"/>.
         /// </summary>
@@ -173,13 +181,25 @@ namespace N_m3u8DL_RE.CommandLine
         /// </summary>
         public StreamFilter? VideoFilter { get; set; }
         /// <summary>
+        /// See: <see cref="CommandInvoker.DropVideoFilter"/>.
+        /// </summary>
+        public StreamFilter? DropVideoFilter { get; set; }
+        /// <summary>
         /// See: <see cref="CommandInvoker.AudioFilter"/>.
         /// </summary>
         public StreamFilter? AudioFilter { get; set; }
         /// <summary>
+        /// See: <see cref="CommandInvoker.DropAudioFilter"/>.
+        /// </summary>
+        public StreamFilter? DropAudioFilter { get; set; }
+        /// <summary>
         /// See: <see cref="CommandInvoker.SubtitleFilter"/>.
         /// </summary>
         public StreamFilter? SubtitleFilter { get; set; }
+        /// <summary>
+        /// See: <see cref="CommandInvoker.DropSubtitleFilter"/>.
+        /// </summary>
+        public StreamFilter? DropSubtitleFilter { get; set; }
         /// <summary>
         /// See: <see cref="CommandInvoker.CustomHLSMethod"/>.
         /// </summary>
@@ -201,5 +221,10 @@ namespace N_m3u8DL_RE.CommandLine
         /// </summary>
         public int? LiveWaitTime { get; set; }
         public bool MuxKeepFiles { get; set; }
+        //public bool LiveWriteHLS { get; set; } = true;
+        /// <summary>
+        /// See: <see cref="CommandInvoker.LivePipeMux"/>.
+        /// </summary>
+        public bool LivePipeMux { get; set; }
     }
 }

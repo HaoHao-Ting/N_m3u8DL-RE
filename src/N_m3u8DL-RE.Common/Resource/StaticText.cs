@@ -10,6 +10,36 @@ namespace N_m3u8DL_RE.Common.Resource
     {
         public static Dictionary<string, TextContainer> LANG_DIC = new()
         {
+            ["processImageSub"] = new TextContainer
+            (
+                zhCN: "正在处理图形字幕",
+                zhTW: "正在處理圖形字幕",
+                enUS: "Processing Image Sub"
+            ),
+            ["newVersionFound"] = new TextContainer
+            (
+                zhCN: "检测到新版本，请尽快升级！",
+                zhTW: "檢測到新版本，請盡快升級！",
+                enUS: "New version detected!"
+            ),
+            ["namedPipeCreated"] = new TextContainer
+            (
+                zhCN: "已创建命名管道：",
+                zhTW: "已創建命名管道：",
+                enUS: "Named pipe created: "
+            ),
+            ["namedPipeMux"] = new TextContainer
+            (
+                zhCN: "通过命名管道混流到",
+                zhTW: "通過命名管道混流到",
+                enUS: "Mux with named pipe, to"
+            ),
+            ["taskStartAt"] = new TextContainer
+            (
+                zhCN: "程序将等待，直到：",
+                zhTW: "程序將等待，直到：",
+                enUS: "The program will wait until: "
+            ),
             ["autoBinaryMerge"] = new TextContainer
             (
                 zhCN: "检测到fMP4，自动开启二进制合并",
@@ -63,6 +93,12 @@ namespace N_m3u8DL_RE.Common.Resource
                 zhCN: "设置BaseURL",
                 zhTW: "設置BaseURL",
                 enUS: "Set BaseURL"
+            ),
+            ["cmd_noDateInfo"] = new TextContainer
+            (
+                zhCN: "混流时不写入日期信息",
+                zhTW: "混流時不寫入日期訊息",
+                enUS: "Date information is not written during muxing"
             ),
             ["cmd_appendUrlParams"] = new TextContainer
             (
@@ -286,6 +322,12 @@ namespace N_m3u8DL_RE.Common.Resource
                 zhTW: "指定HLS解密IV. 可以是文件, HEX或Base64",
                 enUS: "Set the HLS decryption iv. Can be file, HEX or Base64"
             ),
+            ["cmd_livePipeMux"] = new TextContainer
+            (
+                zhCN: "录制直播并开启实时合并时通过管道+ffmpeg实时混流到TS文件",
+                zhTW: "錄製直播並開啟即時合併時通過管道+ffmpeg即時混流到TS文件",
+                enUS: "Real-time muxing to TS file through pipeline + ffmpeg (liveRealTimeMerge enabled)"
+            ),
             ["cmd_liveKeepSegments"] = new TextContainer
             (
                 zhCN: "录制直播并开启实时合并时依然保留分片",
@@ -297,6 +339,12 @@ namespace N_m3u8DL_RE.Common.Resource
                 zhCN: "录制直播时的录制时长限制",
                 zhTW: "錄製直播時的錄製時長限制",
                 enUS: "Recording time limit when recording live"
+            ),
+            ["cmd_taskStartAt"] = new TextContainer
+            (
+                zhCN: "在此时间之前不会开始执行任务",
+                zhTW: "在此時間之前不會開始執行任務",
+                enUS: "Task execution will not start before this time"
             ),
             ["cmd_useShakaPackager"] = new TextContainer
             (
@@ -316,11 +364,17 @@ namespace N_m3u8DL_RE.Common.Resource
                 zhTW: "通過正則表達式選擇符合要求的影片軌. 輸入 \"--morehelp select-video\" 以查看詳細訊息",
                 enUS: "Select video streams by regular expressions. Use \"--morehelp select-video\" for more details"
             ),
+            ["cmd_dropVideo"] = new TextContainer
+            (
+                zhCN: "通过正则表达式去除符合要求的视频流.",
+                zhTW: "通過正則表達式去除符合要求的影片串流.",
+                enUS: "Drop video streams by regular expressions."
+            ),
             ["cmd_selectVideo_more"] = new TextContainer
             (
                 zhCN: "通过正则表达式选择符合要求的视频流. 你能够以:分隔形式指定如下参数:\r\n\r\n" +
-                      "id=REGEX:lang=REGEX:name=REGEX:codec=REGEX:res=REGEX\r\n" +
-                      "frame=REGEX:ch=REGEX:range=REGEX:url=REGEX:for=FOR\r\n\r\n" +
+                      "id=REGEX:lang=REGEX:name=REGEX:codec=REGEX:res=REGEX:frame=REGEX\r\n" +
+                      "segsMin=number:segsMax=number:ch=REGEX:range=REGEX:url=REGEX:for=FOR\r\n\r\n" +
                       "* for=FOR: 选择方式. best[number], worst[number], all (默认: best)\r\n\r\n" +
                       "例如: \r\n" +
                       "# 选择最佳视频\r\n" +
@@ -351,6 +405,12 @@ namespace N_m3u8DL_RE.Common.Resource
                 zhCN: "通过正则表达式选择符合要求的音频流. 输入 \"--morehelp select-audio\" 以查看详细信息",
                 zhTW: "通過正則表達式選擇符合要求的音軌. 輸入 \"--morehelp select-audio\" 以查看詳細訊息",
                 enUS: "Select audio streams by regular expressions. Use \"--morehelp select-audio\" for more details"
+            ),
+            ["cmd_dropAudio"] = new TextContainer
+            (
+                zhCN: "通过正则表达式去除符合要求的音频流.",
+                zhTW: "通過正則表達式去除符合要求的音軌.",
+                enUS: "Drop audio streams by regular expressions."
             ),
             ["cmd_selectAudio_more"] = new TextContainer
             (
@@ -384,6 +444,12 @@ namespace N_m3u8DL_RE.Common.Resource
                 zhCN: "通过正则表达式选择符合要求的字幕流. 输入 \"--morehelp select-subtitle\" 以查看详细信息",
                 zhTW: "通過正則表達式選擇符合要求的字幕流. 輸入 \"--morehelp select-subtitle\" 以查看詳細訊息",
                 enUS: "Select subtitle streams by regular expressions. Use \"--morehelp select-subtitle\" for more details"
+            ),
+            ["cmd_dropSubtitle"] = new TextContainer
+            (
+                zhCN: "通过正则表达式去除符合要求的字幕流.",
+                zhTW: "通過正則表達式去除符合要求的字幕流.",
+                enUS: "Drop subtitle streams by regular expressions."
             ),
             ["cmd_selectSubtitle_more"] = new TextContainer
             (
@@ -583,11 +649,23 @@ namespace N_m3u8DL_RE.Common.Resource
                 zhTW: "檢測到Master列表，開始解析全部流訊息",
                 enUS: "Master List detected, try parse all streams"
             ),
+            ["matchTS"] = new TextContainer
+            (
+                zhCN: "内容匹配: [white on green3]HTTP Live MPEG2-TS[/]",
+                zhTW: "內容匹配: [white on green3]HTTP Live MPEG2-TS[/]",
+                enUS: "Content Matched: [white on green3]HTTP Live MPEG2-TS[/]"
+            ),
             ["matchDASH"] = new TextContainer
             (
                 zhCN: "内容匹配: [white on mediumorchid1]Dynamic Adaptive Streaming over HTTP[/]",
                 zhTW: "內容匹配: [white on mediumorchid1]Dynamic Adaptive Streaming over HTTP[/]",
                 enUS: "Content Matched: [white on mediumorchid1]Dynamic Adaptive Streaming over HTTP[/]"
+            ),
+            ["matchMSS"] = new TextContainer
+            (
+                zhCN: "内容匹配: [white on steelblue1]Microsoft Smooth Streaming[/]",
+                zhTW: "內容匹配: [white on steelblue1]Microsoft Smooth Streaming[/]",
+                enUS: "Content Matched: [white on steelblue1]Microsoft Smooth Streaming[/]"
             ),
             ["matchHLS"] = new TextContainer
             (

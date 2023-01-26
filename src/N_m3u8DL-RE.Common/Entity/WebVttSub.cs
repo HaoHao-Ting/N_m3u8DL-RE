@@ -152,20 +152,31 @@ namespace N_m3u8DL_RE.Common.Entity
             }
 
             //确实存在时间轴错误的情况，才修复
-            if ((this.Cues.Count > 0 && sub.Cues.Count > 0 && sub.Cues.First().StartTime < this.Cues.Last().EndTime) || this.Cues.Count == 0)
+            if ((this.Cues.Count > 0 && sub.Cues.Count > 0 && sub.Cues.First().StartTime < this.Cues.Last().EndTime && sub.Cues.First().EndTime != this.Cues.Last().EndTime) || this.Cues.Count == 0)
             {
                 //The MPEG2 transport stream clocks (PCR, PTS, DTS) all have units of 1/90000 second
                 var seconds = (sub.MpegtsTimestamp - baseTimestamp) / 90000;
-                for (int i = 0; i < sub.Cues.Count; i++)
+                var offset = TimeSpan.FromSeconds(seconds);
+                //当前预添加的字幕的起始时间小于实际上已经走过的时间(如offset已经是100秒，而字幕起始却是2秒)，才修复
+                if (sub.Cues.Count > 0 && sub.Cues.First().StartTime < offset)
                 {
-                    sub.Cues[i].StartTime += TimeSpan.FromSeconds(seconds);
-                    sub.Cues[i].EndTime += TimeSpan.FromSeconds(seconds);
+                    for (int i = 0; i < sub.Cues.Count; i++)
+                    {
+                        sub.Cues[i].StartTime += offset;
+                        sub.Cues[i].EndTime += offset;
+                    }
                 }
             }
         }
 
+        private IEnumerable<SubCue> GetCues()
+        {
+            return this.Cues.Where(c => !string.IsNullOrEmpty(c.Payload));
+        }
+
         private static TimeSpan ConvertToTS(string str)
         {
+            str = str.Replace(',', '.');
             var ms = Convert.ToInt32(str.Split('.').Last());
             var o = str.Split('.').First();
             var t = o.Split(':').Reverse().ToList();
@@ -180,7 +191,7 @@ namespace N_m3u8DL_RE.Common.Entity
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            foreach (var c in this.Cues)
+            foreach (var c in GetCues())  //输出时去除空串
             {
                 sb.AppendLine(c.StartTime.ToString(@"hh\:mm\:ss\.fff") + " --> " + c.EndTime.ToString(@"hh\:mm\:ss\.fff") + " " + c.Settings);
                 sb.AppendLine(c.Payload);
@@ -190,9 +201,32 @@ namespace N_m3u8DL_RE.Common.Entity
             return sb.ToString();
         }
 
-        public string ToStringWithHeader()
+        public string ToVtt()
         {
             return "WEBVTT" + Environment.NewLine + Environment.NewLine + ToString();
+        }
+
+        public string ToSrt()
+        {
+            StringBuilder sb = new StringBuilder();
+            int index = 1;
+            foreach (var c in GetCues())
+            {
+                sb.AppendLine($"{index++}");
+                sb.AppendLine(c.StartTime.ToString(@"hh\:mm\:ss\,fff") + " --> " + c.EndTime.ToString(@"hh\:mm\:ss\,fff"));
+                sb.AppendLine(c.Payload);
+                sb.AppendLine();
+            }
+            sb.AppendLine();
+
+            var srt = sb.ToString();
+
+            if (string.IsNullOrEmpty(srt.Trim()))
+            {
+                srt = "1\r\n00:00:00,000 --> 00:00:01,000"; //空字幕
+            }
+
+            return srt;
         }
     }
 }

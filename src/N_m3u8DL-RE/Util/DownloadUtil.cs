@@ -2,6 +2,7 @@
 using N_m3u8DL_RE.Common.Resource;
 using N_m3u8DL_RE.Common.Util;
 using N_m3u8DL_RE.Entity;
+using System.IO;
 using System.Net;
 using System.Net.Http.Headers;
 
@@ -36,13 +37,33 @@ namespace N_m3u8DL_RE.Util
             };
         }
 
-        public static async Task<DownloadResult> DownloadToFileAsync(string url, string path, SpeedContainer speedContainer, Dictionary<string, string>? headers = null, long? fromPosition = null, long? toPosition = null)
+        public static async Task<DownloadResult> DownloadToFileAsync(string url, string path, SpeedContainer speedContainer, CancellationTokenSource cancellationTokenSource, Dictionary<string, string>? headers = null, long? fromPosition = null, long? toPosition = null)
         {
             Logger.Debug(ResString.fetch + url);
             if (url.StartsWith("file:"))
             {
                 var file = new Uri(url).LocalPath;
                 return await CopyFileAsync(file, path, speedContainer, fromPosition, toPosition);
+            }
+            if (url.StartsWith("base64://"))
+            {
+                var bytes = Convert.FromBase64String(url[9..]);
+                await File.WriteAllBytesAsync(path, bytes);
+                return new DownloadResult()
+                {
+                    ActualContentLength = bytes.Length,
+                    ActualFilePath = path,
+                };
+            }
+            if (url.StartsWith("hex://"))
+            {
+                var bytes = HexUtil.HexToBytes(url[6..]);
+                await File.WriteAllBytesAsync(path, bytes);
+                return new DownloadResult()
+                {
+                    ActualContentLength = bytes.Length,
+                    ActualFilePath = path,
+                };
             }
             using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(url));
             if (fromPosition != null || toPosition != null)
@@ -55,26 +76,10 @@ namespace N_m3u8DL_RE.Util
                 }
             }
             Logger.Debug(request.Headers.ToString());
-            CancellationTokenSource cancellationTokenSource = new(); //取消下载
-            using var watcher = Task.Factory.StartNew(async () =>
-            {
-                while (true)
-                {
-                    if (speedContainer == null) break;
-                    if (speedContainer.ShouldStop)
-                    {
-                        cancellationTokenSource.Cancel();
-                        speedContainer.ResetLowSpeedCount();
-                        Logger.DebugMarkUp("Cancel...");
-                        break;
-                    }
-                    await Task.Delay(500);
-                }
-            });
             try
             {
                 using var response = await AppHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationTokenSource.Token);
-                if (response.StatusCode == HttpStatusCode.Found || response.StatusCode == HttpStatusCode.Moved || response.StatusCode == HttpStatusCode.SeeOther)
+                if (((int)response.StatusCode).ToString().StartsWith("30"))
                 {
                     HttpResponseHeaders respHeaders = response.Headers;
                     Logger.Debug(respHeaders.ToString());
@@ -91,7 +96,7 @@ namespace N_m3u8DL_RE.Util
                         {
                             redirectedUrl = respHeaders.Location.AbsoluteUri;
                         }
-                        return await DownloadToFileAsync(redirectedUrl, path, speedContainer, headers, fromPosition, toPosition);
+                        return await DownloadToFileAsync(redirectedUrl, path, speedContainer, cancellationTokenSource, headers, fromPosition, toPosition);
                     }
                 }
                 response.EnsureSuccessStatusCode();
@@ -102,6 +107,15 @@ namespace N_m3u8DL_RE.Util
                 using var responseStream = await response.Content.ReadAsStreamAsync(cancellationTokenSource.Token);
                 var buffer = new byte[16 * 1024];
                 var size = 0;
+
+                size = await responseStream.ReadAsync(buffer, cancellationTokenSource.Token);
+                speedContainer.Add(size);
+                await stream.WriteAsync(buffer, 0, size);
+                //检测imageHeader
+                bool imageHeader = ImageHeaderUtil.IsImageHeader(buffer);
+                //检测GZip（For DDP Audio）
+                bool gZipHeader = buffer.Length > 2 && buffer[0] == 0x1f && buffer[1] == 0x8b;
+
                 while ((size = await responseStream.ReadAsync(buffer, cancellationTokenSource.Token)) > 0)
                 {
                     speedContainer.Add(size);
@@ -112,11 +126,14 @@ namespace N_m3u8DL_RE.Util
                 {
                     ActualContentLength = stream.Length,
                     RespContentLength = contentLength,
-                    ActualFilePath = path
+                    ActualFilePath = path,
+                    ImageHeader= imageHeader,
+                    GzipHeader = gZipHeader
                 };
             }
             catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationTokenSource.Token)
             {
+                speedContainer.ResetLowSpeedCount();
                 throw new Exception("Download speed too slow!");
             }
         }

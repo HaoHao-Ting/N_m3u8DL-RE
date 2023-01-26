@@ -17,6 +17,9 @@ namespace N_m3u8DL_RE.Common.Entity
         public string? Name { get; set; }
         public Choise? Default { get; set; }
 
+        //MSS信息
+        public MSSData? MSSData { get; set; }
+
         //基本信息
         public int? Bandwidth { get; set; }
         public string? Codecs { get; set; }
@@ -50,6 +53,14 @@ namespace N_m3u8DL_RE.Common.Entity
         public string OriginalUrl { get; set; }
 
         public Playlist? Playlist { get; set; }
+
+        public int SegmentsCount
+        {
+            get
+            {
+                return Playlist != null ? Playlist.MediaParts.Sum(x => x.MediaSegments.Count) : 0;
+            }
+        }
 
         public string ToShortString()
         {
@@ -85,13 +96,46 @@ namespace N_m3u8DL_RE.Common.Entity
             return returnStr.TrimEnd().TrimEnd('|').TrimEnd();
         }
 
+        public string ToShortShortString()
+        {
+            var prefixStr = "";
+            var returnStr = "";
+            var encStr = string.Empty;
+
+            if (MediaType == Enum.MediaType.AUDIO)
+            {
+                prefixStr = $"[deepskyblue3]Aud[/] {encStr}";
+                var d = $"{(Bandwidth != null ? (Bandwidth / 1000) + " Kbps" : "")} | {Name} | {Language} | {(Channels != null ? Channels + "CH" : "")}";
+                returnStr = d.EscapeMarkup();
+            }
+            else if (MediaType == Enum.MediaType.SUBTITLES)
+            {
+                prefixStr = $"[deepskyblue3_1]Sub[/] {encStr}";
+                var d = $"{Language} | {Name} | {Codecs}";
+                returnStr = d.EscapeMarkup();
+            }
+            else
+            {
+                prefixStr = $"[aqua]Vid[/] {encStr}";
+                var d = $"{Resolution} | {Bandwidth / 1000} Kbps | {FrameRate} | {VideoRange}";
+                returnStr = d.EscapeMarkup();
+            }
+
+            returnStr = prefixStr + returnStr.Trim().Trim('|').Trim();
+            while (returnStr.Contains("|  |"))
+            {
+                returnStr = returnStr.Replace("|  |", "|");
+            }
+
+            return returnStr.TrimEnd().TrimEnd('|').TrimEnd();
+        }
+
         public override string ToString()
         {
             var prefixStr = "";
             var returnStr = "";
             var encStr = string.Empty;
-            var segmentsCount = Playlist != null ? Playlist.MediaParts.Sum(x => x.MediaSegments.Count) : 0;
-            var segmentsCountStr = segmentsCount == 0 ? "" : (segmentsCount > 1 ? $"{segmentsCount} Segments" : $"{segmentsCount} Segment");
+            var segmentsCountStr = SegmentsCount == 0 ? "" : (SegmentsCount > 1 ? $"{SegmentsCount} Segments" : $"{SegmentsCount} Segment");
 
             //增加加密标志
             if (Playlist != null && Playlist.MediaParts.Any(m => m.MediaSegments.Any(s => s.EncryptInfo.Method != EncryptMethod.NONE)))

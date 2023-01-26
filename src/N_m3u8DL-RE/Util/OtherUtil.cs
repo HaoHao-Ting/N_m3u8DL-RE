@@ -2,6 +2,7 @@
 using N_m3u8DL_RE.Common.Log;
 using N_m3u8DL_RE.Enum;
 using System.CommandLine;
+using System.IO.Compression;
 using System.Text;
 
 namespace N_m3u8DL_RE.Util
@@ -25,32 +26,6 @@ namespace N_m3u8DL_RE.Util
             }
 
             return dic;
-        }
-
-        private static string WebVtt2Srt(WebVttSub vtt)
-        {
-            StringBuilder sb = new StringBuilder();
-            int index = 1;
-            foreach (var c in vtt.Cues)
-            {
-                sb.AppendLine($"{index++}");
-                sb.AppendLine(c.StartTime.ToString(@"hh\:mm\:ss\,fff") + " --> " + c.EndTime.ToString(@"hh\:mm\:ss\,fff"));
-                sb.AppendLine(c.Payload);
-                sb.AppendLine();
-            }
-            sb.AppendLine();
-            return sb.ToString();
-        }
-
-        public static string WebVtt2Other(WebVttSub vtt, SubtitleFormat toFormat)
-        {
-            Logger.Debug($"Convert {SubtitleFormat.VTT} ==> {toFormat}");
-            return toFormat switch
-            {
-                SubtitleFormat.VTT => vtt.ToStringWithHeader(),
-                SubtitleFormat.SRT => WebVtt2Srt(vtt),
-                _ => throw new NotSupportedException($"{toFormat} not supported!")
-            };
         }
 
         private static char[] InvalidChars = "34,60,62,124,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,58,42,63,92,47"
@@ -117,6 +92,48 @@ namespace N_m3u8DL_RE.Util
             if (secs == -1) secs = 0;
 
             return new TimeSpan(days, hours, mins, secs);
+        }
+
+        //若该文件夹为空，删除，同时判断其父文件夹，直到遇到根目录或不为空的目录
+        public static void SafeDeleteDir(string dirPath)
+        {
+            if (string.IsNullOrEmpty(dirPath) || !Directory.Exists(dirPath))
+                return;
+
+            var parent = Path.GetDirectoryName(dirPath)!;
+            if (!Directory.EnumerateFileSystemEntries(dirPath).Any())
+            {
+                Directory.Delete(dirPath);
+            }
+            else
+            {
+                return;
+            }
+            SafeDeleteDir(parent);
+        }
+
+        /// <summary>
+        /// 解压并替换原文件
+        /// </summary>
+        /// <param name="filePath"></param>
+        public static async Task DeGzipFileAsync(string filePath)
+        {
+            string deGzipFile = Path.ChangeExtension(filePath, ".tmp");
+            try
+            {
+                using (var fileToDecompressAsStream = File.OpenRead(filePath))
+                {
+                    using var decompressedStream = File.Create(deGzipFile);
+                    using var decompressionStream = new GZipStream(fileToDecompressAsStream, CompressionMode.Decompress);
+                    await decompressionStream.CopyToAsync(decompressedStream);
+                }
+                File.Delete(filePath);
+                File.Move(deGzipFile, filePath);
+            }
+            catch 
+            {
+                if (File.Exists(deGzipFile)) File.Delete(deGzipFile);
+            }
         }
     }
 }
